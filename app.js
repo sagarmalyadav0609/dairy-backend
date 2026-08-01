@@ -25,6 +25,9 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
+// Trust proxy to allow express-rate-limit to get correct IP behind reverse proxies like Render
+app.set('trust proxy', 1);
+
 // Connect to Database
 connectDB();
 

@@ -78,6 +78,11 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'UP', message: 'Dairy Farm API is running smoothly' });
 });
 
+// Root welcome route (resolves HEAD/GET / 404 errors on Render)
+app.get('/', (req, res) => {
+  res.status(200).json({ success: true, message: 'Dairy Farm API is running smoothly' });
+});
+
 // Error handling middleware
 app.use((req, res, next) => {
   res.status(404).json({ success: false, message: 'Resource not found' });

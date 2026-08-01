@@ -12,19 +12,7 @@ const transporter = nodemailer.createTransport({
 });
 
 export const sendOTP = async (email, otp) => {
-  const mailOptions = {
-    from: '"Royal Dairy Farm Support" <sagarmalyadav9799@gmail.com>',
-    to: email,
-    subject: 'Your Dairy Farm Verification OTP Code',
-    text: `Hello,
-
-Your verification OTP code to login to the Dairy Farm Management System is: ${otp}.
-
-This OTP code will expire in 5 minutes. If you did not request this login, please ignore this email.
-
-Best regards,
-Royal Dairy Farm IT Team`,
-    html: `
+  const mailHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff;">
         <div style="text-align: center; margin-bottom: 20px; padding-bottom: 20px; border-b: 2px solid #f1f5f9;">
           <h2 style="color: #10b981; margin: 0;">Royal Dairy Farms</h2>
@@ -43,12 +31,58 @@ Royal Dairy Farm IT Team`,
           <strong>Royal Dairy Farm Support Team</strong>
         </p>
       </div>
-    `,
+  `;
+
+  // If RESEND_API_KEY is available (e.g. on Render production), send via Resend HTTP API
+  if (process.env.RESEND_API_KEY) {
+    try {
+      console.log(`Attempting to send OTP email via Resend HTTP API to ${email}...`);
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+        },
+        body: JSON.stringify({
+          from: 'Royal Dairy Farm <onboarding@resend.dev>',
+          to: email,
+          subject: 'Your Dairy Farm Verification OTP Code',
+          html: mailHtml,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || `HTTP error! status: ${response.status}`);
+      }
+
+      console.log(`OTP Email sent successfully via Resend to ${email}. ID: ${data.id}`);
+      return { success: true };
+    } catch (error) {
+      console.error(`Resend API Send Email failed for ${email}:`, error.message);
+      throw new Error(`Email delivery failed via Resend: ${error.message}`);
+    }
+  }
+
+  // Fallback to Gmail SMTP (for local development)
+  const mailOptions = {
+    from: '"Royal Dairy Farm Support" <sagarmalyadav9799@gmail.com>',
+    to: email,
+    subject: 'Your Dairy Farm Verification OTP Code',
+    text: `Hello,
+
+Your verification OTP code to login to the Dairy Farm Management System is: ${otp}.
+
+This OTP code will expire in 5 minutes. If you did not request this login, please ignore this email.
+
+Best regards,
+Royal Dairy Farm IT Team`,
+    html: mailHtml,
   };
 
   try {
     const info = await transporter.sendMail(mailOptions);
-    console.log(`OTP Email sent successfully to ${email}. Message ID: ${info.messageId}`);
+    console.log(`OTP Email sent successfully via SMTP to ${email}. Message ID: ${info.messageId}`);
     return { success: true };
   } catch (error) {
     console.error(`SMTP Send Email failed for ${email}:`, error.message);

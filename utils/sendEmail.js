@@ -68,27 +68,29 @@ export const sendOTP = async (email, otp) => {
     }
   }
 
-  // Fallback to Gmail SMTP (for local development)
-  // We resolve the IP dynamically and pass it to nodemailer along with TLS servername validation
-  const resolvedHost = await resolveSmtpHost('smtp.gmail.com');
-  const transporter = nodemailer.createTransport({
-    host: resolvedHost,
-    port: 465,
-    secure: true, // SSL/TLS
-    auth: {
-      user: 'sagarmalyadav9799@gmail.com',
-      pass: 'ibqg sftx wzgp muwd',
-    },
-    tls: {
-      servername: 'smtp.gmail.com', // Crucial to prevent hostname mismatch during handshake
-    },
-  });
+  // Fallback to SMTP
+  const sendViaSMTP = async (port, secure) => {
+    const resolvedHost = await resolveSmtpHost('smtp.gmail.com');
+    const transporter = nodemailer.createTransport({
+      host: resolvedHost,
+      port: port,
+      secure: secure,
+      auth: {
+        user: 'sagarmalyadav9799@gmail.com',
+        pass: 'ibqg sftx wzgp muwd',
+      },
+      tls: {
+        servername: 'smtp.gmail.com',
+        rejectUnauthorized: false,
+      },
+      connectionTimeout: 5000, // 5 seconds timeout before trying next port
+    });
 
-  const mailOptions = {
-    from: '"Royal Dairy Farm Support" <sagarmalyadav9799@gmail.com>',
-    to: email,
-    subject: 'Your Dairy Farm Verification OTP Code',
-    text: `Hello,
+    const mailOptions = {
+      from: '"Royal Dairy Farm Support" <sagarmalyadav9799@gmail.com>',
+      to: email,
+      subject: 'Your Dairy Farm Verification OTP Code',
+      text: `Hello,
 
 Your verification OTP code to login to the Dairy Farm Management System is: ${otp}.
 
@@ -96,15 +98,26 @@ This OTP code will expire in 5 minutes. If you did not request this login, pleas
 
 Best regards,
 Royal Dairy Farm IT Team`,
-    html: mailHtml,
+      html: mailHtml,
+    };
+
+    return await transporter.sendMail(mailOptions);
   };
 
   try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log(`OTP Email sent successfully via SMTP to ${email}. Message ID: ${info.messageId}`);
+    console.log(`Attempting SMTP send to ${email} via Port 465 (SSL)...`);
+    const info = await sendViaSMTP(465, true);
+    console.log(`OTP Email sent successfully via SMTP Port 465 to ${email}. Message ID: ${info.messageId}`);
     return { success: true };
-  } catch (error) {
-    console.error(`SMTP Send Email failed for ${email}:`, error.message);
-    throw new Error(`Email delivery failed: ${error.message}`);
+  } catch (error465) {
+    console.warn(`SMTP Port 465 failed: ${error465.message}. Falling back to Port 587 (TLS)...`);
+    try {
+      const info = await sendViaSMTP(587, false);
+      console.log(`OTP Email sent successfully via SMTP Port 587 to ${email}. Message ID: ${info.messageId}`);
+      return { success: true };
+    } catch (error587) {
+      console.error(`SMTP Port 587 failed: ${error587.message}`);
+      throw new Error(`Email delivery failed: Port 465 failed (${error465.message}), Port 587 failed (${error587.message})`);
+    }
   }
 };

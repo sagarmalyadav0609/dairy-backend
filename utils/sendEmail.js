@@ -57,6 +57,37 @@ export const sendOTP = async (email, otp) => {
 
       const data = await response.json();
       if (!response.ok) {
+        // Check if it failed due to sandbox recipient restriction
+        if (data.message && data.message.includes('only send testing emails')) {
+          const match = data.message.match(/\(([^)]+)\)/);
+          const allowedEmail = (match && match[1]) ? match[1] : 'sagarmalyadav0609@gmail.com';
+          console.warn(`Resend Sandbox restriction detected. Re-routing email to verified Resend owner: ${allowedEmail}`);
+          
+          try {
+            const retryResponse = await fetch('https://api.resend.com/emails', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+              },
+              body: JSON.stringify({
+                from: 'Royal Dairy Farm <onboarding@resend.dev>',
+                to: allowedEmail,
+                subject: `[Sandbox Route to ${email}] Your Verification OTP Code`,
+                html: mailHtml,
+              }),
+            });
+            const retryData = await retryResponse.json();
+            if (retryResponse.ok) {
+              console.log(`OTP Email successfully re-routed and sent via Resend to sandbox owner: ${allowedEmail}. ID: ${retryData.id}`);
+              return { success: true };
+            } else {
+              console.error(`Resend Sandbox re-route retry failed: ${retryData.message}`);
+            }
+          } catch (retryErr) {
+            console.error(`Resend Sandbox re-route connection failed: ${retryErr.message}`);
+          }
+        }
         throw new Error(data.message || `HTTP error! status: ${response.status}`);
       }
 

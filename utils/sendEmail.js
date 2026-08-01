@@ -1,15 +1,19 @@
 import nodemailer from 'nodemailer';
+import dns from 'dns';
 
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true, // SSL/TLS
-  auth: {
-    user: 'sagarmalyadav9799@gmail.com',
-    pass: 'ibqg sftx wzgp muwd',
-  },
-  family: 4, // Force IPv4 to prevent ENETUNREACH IPv6 connection issues
-});
+// Helper to resolve smtp.gmail.com to IPv4 dynamically, bypassing any IPv6 network pathways
+const resolveSmtpHost = async (host) => {
+  try {
+    const addresses = await dns.promises.resolve4(host);
+    if (addresses && addresses.length > 0) {
+      console.log(`DNS Resolved ${host} to IPv4 address: ${addresses[0]}`);
+      return addresses[0];
+    }
+  } catch (err) {
+    console.error(`DNS resolve4 failed for ${host}, using fallback:`, err.message);
+  }
+  return host;
+};
 
 export const sendOTP = async (email, otp) => {
   const mailHtml = `
@@ -65,6 +69,21 @@ export const sendOTP = async (email, otp) => {
   }
 
   // Fallback to Gmail SMTP (for local development)
+  // We resolve the IP dynamically and pass it to nodemailer along with TLS servername validation
+  const resolvedHost = await resolveSmtpHost('smtp.gmail.com');
+  const transporter = nodemailer.createTransport({
+    host: resolvedHost,
+    port: 465,
+    secure: true, // SSL/TLS
+    auth: {
+      user: 'sagarmalyadav9799@gmail.com',
+      pass: 'ibqg sftx wzgp muwd',
+    },
+    tls: {
+      servername: 'smtp.gmail.com', // Crucial to prevent hostname mismatch during handshake
+    },
+  });
+
   const mailOptions = {
     from: '"Royal Dairy Farm Support" <sagarmalyadav9799@gmail.com>',
     to: email,

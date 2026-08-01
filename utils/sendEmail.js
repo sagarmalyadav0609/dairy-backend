@@ -8,6 +8,7 @@ const transporter = nodemailer.createTransport({
     user: 'sagarmalyadav9799@gmail.com',
     pass: 'ibqg sftx wzgp muwd',
   },
+  family: 4, // Force IPv4 to prevent ENETUNREACH IPv6 connection issues
 });
 
 export const sendOTP = async (email, otp) => {

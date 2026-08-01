@@ -63,8 +63,7 @@ export const sendOTP = async (email, otp) => {
       console.log(`OTP Email sent successfully via Resend to ${email}. ID: ${data.id}`);
       return { success: true };
     } catch (error) {
-      console.error(`Resend API Send Email failed for ${email}:`, error.message);
-      throw new Error(`Email delivery failed via Resend: ${error.message}`);
+      console.warn(`Resend API Send Email failed for ${email}: ${error.message}. Falling back to SMTP...`);
     }
   }
 
